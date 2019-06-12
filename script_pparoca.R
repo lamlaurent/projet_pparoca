@@ -28,7 +28,8 @@ pacman::p_load(tidyverse,
                lme4,
                nlme,
                gplots,
-               lmerTest)
+               lmerTest,
+               ggplot2)
 
 select <- dplyr::select
 
@@ -63,9 +64,10 @@ dw <- reshape(dl,direction="wide",timevar ="visite" ,idvar="id_patient",v.names 
                             "ggt_ui_l","ggt_x_n","pal_ui_l","pal_x_n","bilirubine_µmol_l","tp","albumine_g_l","plaquettes_µ_l",     
                             "creatinine_µmol_l","cholesterol_g_l","ig_m_g_l","myalgies","date_fibroscan","fibroscan"))  
 
-########################## Boite à moustache ################################################################
 
-# boite à moustache en fonction des visites
+## représentations graphiques ###########
+
+# taux de PAL (xN) en fonction des visites (ensemble des patients)
 
 means <- aggregate(pal_ui_l ~  visite, dl, mean)
 ggplot(dl) +
@@ -97,7 +99,16 @@ mean(dw$pal_ui_l.V2,na.rm = TRUE) # taux moyen de 400 à V2
 mean(dw$pal_ui_l.V3,na.rm = TRUE) # taux moyen de 221 à V3
 mean(dw$pal_ui_l.V4,na.rm = TRUE) # taux moyen de 135 à V4
 
+
+
+
+
+
 ############## regression linéaire  ##############################################
+
+## entre v2, V3 et V4
+summary(lmer(pal_ui_l~temps + (1|id_patient), data=dl))
+
 
 ## entre V2 et V4
 dl24 <- dl %>% select (id_patient, visite,pal_ui_l) %>% filter (visite=="V2"|visite=="V4") 
@@ -119,19 +130,29 @@ lm34 <- lm(pal_ui_l~visite + id_patient, data=dl34)
 summary(lm34)
 drop1(lm34,.~.,test = "F") #p=3.868e-06
 
+###########################################################
 ###################### Modèle mixte ######################
+############################################################
 
-# représentation graphique
+# le taux de PAL(xN) en fonction du temps (ensemble des patients) ####################################################
 
 div1<-matrix(data=c(1), ncol=1, nrow=1)
 layout(div1)
 plotmeans(dl$pal_ui_l~dl$visite,pch=16,barcol="black", xlab="numéro de la
 visite", ylab="Moyenne du taux de PAL en UI/L")
 
+
+# spaghetti plot
+
+p <- ggplot(data = dl, aes(x = temps, y = pal_ui_l, group = id_patient))
+p + geom_line() # donne la ligne évolutive de Hamilton pour chaque patient
+p + geom_line() + facet_grid(. ~ groupe) #va nous donner deux graphes séparés pour chaque groupe
+p + geom_line() + stat_summary(aes(group = 1), geom = "point", fun.y = mean,shape =17, size = 3, col="#CC0066") + facet_grid(. ~ groupe) # même graphe que précédemment mais avec la moyenne
+
 # modele mixte sans varexplicative trithérapie
 
-modmixte <- lmer(pal_ui_l~groupe+temps+(groupe*temps)+(1|id_patient),data=dl)
-summary(modmixte)
+mod_pal_ui <- lmer(pal_ui_l~groupe+temps+(groupe*temps)+(1|id_patient),data=dl)
+summary(mod_pal_ui)
 
 
 # création d'une variable trithérapie
@@ -139,21 +160,32 @@ summary(modmixte)
 dl <- dl %>% mutate(tritherapie=ifelse(visite=="V3"|visite=="V4",1,0))
 
 # modele mixte avec trithérapie
-modmixte2 <- lmer(pal_ui_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL UI
-summary(modmixte2) 
+mod_pal_ui_tt <- lmer(pal_ui_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL UI
+summary(mod_pal_ui_tt ) 
 
-modmixte3 <- lmer(pal_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL xN
-summary(modmixte3)
+mod_pal_n <- lmer(pal_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL xN
+summary(mod_pal_n)
 
 #conditions de validité
 par(mfrow=c(1,2))
-hist(resid(modmixte2),col="cornflowerblue",main="Distribution du bruit",xlab="Résidus")
-qqnorm(resid(modmixte2))
+hist(resid(mod_pal_ui_tt),col="cornflowerblue",main="Distribution du bruit",xlab="Résidus")
+qqnorm(resid(mod_pal_ui_tt))
+qqline(resid(mod_pal_ui_tt))
 
 
-library(gplots)
 
-summary(lmer(pal_x_n~temps+(1|id_patient),data=dl))
+# les taux de GGT (xN)
+# ASAT (xN)
+# ALAT (xN)
+# Bilirubine totale
+# Echelle du prurit
+# Albumine
+# IgM Créatinine, TP, Plaquettes, et Cholestérol en fonction du temps 
+ 
+
+
+
+
 
 
         
