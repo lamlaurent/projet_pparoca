@@ -1,3 +1,7 @@
+###################################
+######PACKAGES#####################
+###################################
+
 
 pacman::p_load(tidyverse, 
                DescTools,
@@ -29,7 +33,8 @@ pacman::p_load(tidyverse,
                nlme,
                gplots,
                lmerTest,
-               ggplot2)
+               ggplot2,
+               splitstackshape)
 
 select <- dplyr::select
 
@@ -159,9 +164,15 @@ summary(mod_pal_ui)
 
 dl <- dl %>% mutate(tritherapie=ifelse(visite=="V3"|visite=="V4",1,0))
 
-# modele mixte avec trithérapie
-mod_pal_ui_tt <- lmer(pal_ui_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL UI
+
+ 
+# modele mixte avec trithérapie      ----------------- QUE FAIRE ?
+
+
+
+mod_pal_ui_tt <- lmer(pal_ui_l~temps+tritherapie+(1|id_patient),data=dl) # avec PAL UI
 summary(mod_pal_ui_tt ) 
+
 
 mod_pal_n <- lmer(pal_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) # avec PAL xN
 summary(mod_pal_n)
@@ -175,17 +186,79 @@ qqline(resid(mod_pal_ui_tt))
 
 
 # les taux de GGT (xN)
+mod_ggt_n <- lmer(ggt_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_ggt_n)
+
 # ASAT (xN)
+mod_asat_n <- lmer(asat_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_asat_n)
+
 # ALAT (xN)
+mod_alat_n <- lmer(alat_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_alat_n)
+
 # Bilirubine totale
+mod_bil <- lmer(bilirubine_µmol_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_bil)
+
 # Echelle du prurit
+mod_prurit <- lmer(prurit_echelle_0_10~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_prurit)
+
 # Albumine
-# IgM Créatinine, TP, Plaquettes, et Cholestérol en fonction du temps 
- 
+mod_albumine <- lmer(albumine_g_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_albumine)
+
+# IgM 
+mod_igm <- lmer(ig_m_g_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_igm)
+
+# Creatinine
+mod_creat <- lmer(creatinine_µmol_l~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_creat)
 
 
+#TP
+mod_tp <- lmer(ggt_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_tp)
 
+#Plaquettes
+mod_plaq <- lmer(ggt_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_plaq)
 
+#Cholestérol 
+mod_cho <- lmer(ggt_x_n~groupe+temps+(groupe*temps)+(1|id_patient)+tritherapie,data=dl) 
+summary(mod_cho) 
 
+names(dlong)
+######################################################################################################################
+##### création d'une base avec 2  groupes bithérapie et trithérapie débutant tous les deux à t0 pour la comparaison ##
+######################################################################################################################
+dl_bi <- dl %>% filter(visite=="V2"|visite=="V3")
+dl_tri <- dl %>% filter(visite=="V3"|visite=="V4")
+
+dl_tri <- dl_tri %>% group_by(id_patient) %>% mutate(temps_m = temps - lag(temps, default = first(temps))) %>% ungroup() %>% as.data.frame()
+dl_bi$temps_m <- dl_bi$temps
+
+# changement des ids des sujets du dataframe dl_tri (multiplié par 10)
+
+dl_bi$id_patient_m <- dl_bi$id_patient
+dl_bi$id_patient_m <- as.numeric(dl_bi$id_patient) 
+dl_tri <- dl_tri %>% mutate(id_patient_m=as.numeric(id_patient)*100) 
+dl_tri$id_patient_m <- as.numeric(dl_tri$id_patient_m)
+dl_tri$tritherapie_m <- 1
+dl_bi$tritherapie_m <- 0
+
+# on regroupe les deux bases en une base dl_bi_tri pour faire nos analyses
+dl_bi_tri <-  bind_rows(dl_bi,dl_tri) 
+dl_bi_tri$id_patient_m <- as.factor(dl_bi_tri$id_patient_m)
+dl_bi_tri$tritherapie_m<- as.factor(dl_bi_tri$tritherapie_m)
+
+######## y a t'il une différence de pente entre le groupe trithérapie et le groupe bithérapie - modele mixte
+
+##### PAL ####
+
+mod_pal_ui_tt <- lmer(pal_ui_l~tritherapie_m+temps_m+tritherapie_m*temps+(1|id_patient),data=dl_bi_tri) # avec PAL UI
+summary(mod_pal_ui_tt )
 
         
